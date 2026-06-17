@@ -4,6 +4,7 @@ import {
   incrementBlogViewCount,
 } from "../repositories/blogRepository.js";
 import ApiError from "../utils/apiError.js";
+import { COMMENT_STATUS } from "../constants/index.js";
 
 function mapBlogRow(row) {
   return {
@@ -25,11 +26,12 @@ function mapBlogImage(row) {
   };
 }
 
-function mapBlogDetail(row) {
+function mapBlogDetail(row, comments = []) {
   return {
     ...mapBlogRow(row),
     content: row.content ?? "",
     images: (row.blog_images ?? []).map(mapBlogImage),
+    comments,
   };
 }
 
@@ -63,7 +65,17 @@ export async function getPublishedBlogList({ search, page, limit, offset }) {
 export async function getPublishedBlogBySlug(slug) {
   try {
     const blog = await findPublishedBlogBySlug(slug);
-    return { data: mapBlogDetail(blog) };
+    const approvedComments = (blog.comments ?? []).filter(
+      (comment) => comment.status === COMMENT_STATUS.APPROVED
+    );
+    const comments = approvedComments.map((comment) => ({
+      id: comment.id,
+      authorName: comment.author_name,
+      body: comment.body,
+      createdAt: comment.created_at,
+    }));
+
+    return { data: mapBlogDetail(blog, comments) };
   } catch (error) {
     if (error instanceof ApiError) {
       throw error;
