@@ -37,3 +37,85 @@ export async function findPublishedBlogs({ search, limit, offset }) {
     total: count ?? 0,
   };
 }
+
+export async function findPublishedBlogBySlug(slug) {
+  if (!supabase) {
+    throw new ApiError(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "Database is not configured"
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("blogs")
+    .select(
+      `
+      id,
+      title,
+      slug,
+      excerpt,
+      content,
+      cover_image_url,
+      published_at,
+      view_count,
+      blog_images (
+        id,
+        image_url,
+        position
+      )
+    `
+    )
+    .eq("slug", slug)
+    .eq("status", BLOG_STATUS.PUBLISHED)
+    .order("position", { foreignTable: "blog_images", ascending: true })
+    .maybeSingle();
+
+  if (error) {
+    throw new ApiError(500, "DATABASE_ERROR", error.message);
+  }
+
+  if (!data) {
+    throw new ApiError(404, "BLOG_NOT_FOUND", "Blog not found");
+  }
+
+  return data;
+}
+
+export async function incrementBlogViewCount(slug) {
+  if (!supabase) {
+    throw new ApiError(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "Database is not configured"
+    );
+  }
+
+  const { data: blog, error: fetchError } = await supabase
+    .from("blogs")
+    .select("id, view_count")
+    .eq("slug", slug)
+    .eq("status", BLOG_STATUS.PUBLISHED)
+    .maybeSingle();
+
+  if (fetchError) {
+    throw new ApiError(500, "DATABASE_ERROR", fetchError.message);
+  }
+
+  if (!blog) {
+    throw new ApiError(404, "BLOG_NOT_FOUND", "Blog not found");
+  }
+
+  const { data, error } = await supabase
+    .from("blogs")
+    .update({ view_count: (blog.view_count ?? 0) + 1 })
+    .eq("id", blog.id)
+    .select("view_count")
+    .single();
+
+  if (error) {
+    throw new ApiError(500, "DATABASE_ERROR", error.message);
+  }
+
+  return data.view_count;
+}
