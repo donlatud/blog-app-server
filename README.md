@@ -60,3 +60,13 @@ POST /api/blogs/:slug/comments { body }   # requireAuth — status pending
 - Comment body: Thai characters and numbers only (1–500 chars), validated client + server
 - Run `supabase/patch-comment-rls.sql` if upgrading an older database
 - Run `supabase/seed-comments.sql` for 2 approved demo comments on `beginner-guide`
+
+## Feature 5 API
+
+```
+GET /api/admin/blogs?page=1&limit=10&status=all|published|draft
+```
+
+- Requires admin session (`profiles.role = 'admin'`)
+- Member/non-admin → `403 FORBIDDEN`
+- Run `supabase/seed-admin.sql` after creating admin user in Supabase Auth

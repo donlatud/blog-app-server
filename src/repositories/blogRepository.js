@@ -127,3 +127,37 @@ export async function incrementBlogViewCount(slug) {
 
   return data.view_count;
 }
+
+const ADMIN_LIST_COLUMNS =
+  "id, title, slug, cover_image_url, published_at, view_count, status, created_at";
+
+export async function findAdminBlogs({ status, limit, offset }) {
+  if (!supabase) {
+    throw new ApiError(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "Database is not configured"
+    );
+  }
+
+  let query = supabase
+    .from("blogs")
+    .select(ADMIN_LIST_COLUMNS, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (status && status !== "all") {
+    query = query.eq("status", status);
+  }
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    throw new ApiError(500, "DATABASE_ERROR", error.message);
+  }
+
+  return {
+    items: data ?? [],
+    total: count ?? 0,
+  };
+}
