@@ -37,3 +37,26 @@ POST /api/blogs/:slug/view
 - รายละเอียด blog (published) + `blog_images`
 - `POST /view` เพิ่ม view count ทุกครั้งที่เปิดหน้า
 - รัน `supabase/seed-blog-images.sql` สำหรับเนื้อหา + รูปเพิ่มเติมตัวอย่าง
+
+## Feature 3 API
+
+```
+POST /api/auth/register   { email, password, displayName }
+POST /api/auth/login      { email, password }
+POST /api/auth/logout
+GET  /api/auth/me
+```
+
+- Session via httpOnly cookies (`access_token`, `refresh_token`)
+- Frontend must use `withCredentials: true` on API requests
+
+## Feature 4 API
+
+```
+GET  /api/blogs/:slug          # includes approved comments only
+POST /api/blogs/:slug/comments { body }   # requireAuth — status pending
+```
+
+- Comment body: Thai characters and numbers only (1–500 chars), validated client + server
+- Run `supabase/patch-comment-rls.sql` if upgrading an older database
+- Run `supabase/seed-comments.sql` for 2 approved demo comments on `beginner-guide`

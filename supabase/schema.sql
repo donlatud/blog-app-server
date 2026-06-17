@@ -230,6 +230,13 @@ FOR INSERT
 TO authenticated
 WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can read own comments" ON public.comments;
+CREATE POLICY "Users can read own comments"
+ON public.comments
+FOR SELECT
+TO authenticated
+USING (auth.uid() = user_id);
+
 -- ============================================================
 -- 8) Storage bucket สำหรับรูป blog
 -- ============================================================

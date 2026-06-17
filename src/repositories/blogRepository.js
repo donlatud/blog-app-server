@@ -63,12 +63,20 @@ export async function findPublishedBlogBySlug(slug) {
         id,
         image_url,
         position
+      ),
+      comments (
+        id,
+        author_name,
+        body,
+        created_at,
+        status
       )
     `
     )
     .eq("slug", slug)
     .eq("status", BLOG_STATUS.PUBLISHED)
     .order("position", { foreignTable: "blog_images", ascending: true })
+    .order("created_at", { foreignTable: "comments", ascending: true })
     .maybeSingle();
 
   if (error) {
