@@ -161,3 +161,210 @@ export async function findAdminBlogs({ status, limit, offset }) {
     total: count ?? 0,
   };
 }
+
+export async function findBlogById(id) {
+  if (!supabase) {
+    throw new ApiError(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "Database is not configured"
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("blogs")
+    .select(
+      `
+      id,
+      title,
+      slug,
+      excerpt,
+      content,
+      cover_image_url,
+      status,
+      view_count,
+      published_at,
+      created_at,
+      updated_at,
+      blog_images (
+        id,
+        image_url,
+        position
+      )
+    `
+    )
+    .eq("id", id)
+    .order("position", { foreignTable: "blog_images", ascending: true })
+    .maybeSingle();
+
+  if (error) {
+    throw new ApiError(500, "DATABASE_ERROR", error.message);
+  }
+
+  if (!data) {
+    throw new ApiError(404, "BLOG_NOT_FOUND", "Blog not found");
+  }
+
+  return data;
+}
+
+export async function isSlugTaken(slug, excludeId = null) {
+  if (!supabase) {
+    throw new ApiError(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "Database is not configured"
+    );
+  }
+
+  let query = supabase.from("blogs").select("id").eq("slug", slug).limit(1);
+
+  if (excludeId) {
+    query = query.neq("id", excludeId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new ApiError(500, "DATABASE_ERROR", error.message);
+  }
+
+  return (data ?? []).length > 0;
+}
+
+export async function insertBlog({
+  title,
+  slug,
+  excerpt,
+  content,
+  coverImageUrl,
+  status,
+}) {
+  if (!supabase) {
+    throw new ApiError(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "Database is not configured"
+    );
+  }
+
+  const now = new Date().toISOString();
+  const publishedAt = status === "published" ? now : null;
+
+  const { data, error } = await supabase
+    .from("blogs")
+    .insert({
+      title,
+      slug,
+      excerpt,
+      content,
+      cover_image_url: coverImageUrl || null,
+      status,
+      published_at: publishedAt,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      throw new ApiError(409, "SLUG_EXISTS", "This slug is already in use.");
+    }
+
+    throw new ApiError(500, "DATABASE_ERROR", error.message);
+  }
+
+  return data.id;
+}
+
+export async function updateBlogById(id, fields) {
+  if (!supabase) {
+    throw new ApiError(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "Database is not configured"
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("blogs")
+    .update(fields)
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    if (error.code === "23505") {
+      throw new ApiError(409, "SLUG_EXISTS", "This slug is already in use.");
+    }
+
+    throw new ApiError(500, "DATABASE_ERROR", error.message);
+  }
+
+  if (!data) {
+    throw new ApiError(404, "BLOG_NOT_FOUND", "Blog not found");
+  }
+
+  return data.id;
+}
+
+export async function deleteBlogById(id) {
+  if (!supabase) {
+    throw new ApiError(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "Database is not configured"
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("blogs")
+    .delete()
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw new ApiError(500, "DATABASE_ERROR", error.message);
+  }
+
+  if (!data) {
+    throw new ApiError(404, "BLOG_NOT_FOUND", "Blog not found");
+  }
+
+  return data.id;
+}
+
+export async function replaceBlogImages(blogId, images) {
+  if (!supabase) {
+    throw new ApiError(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "Database is not configured"
+    );
+  }
+
+  const { error: deleteError } = await supabase
+    .from("blog_images")
+    .delete()
+    .eq("blog_id", blogId);
+
+  if (deleteError) {
+    throw new ApiError(500, "DATABASE_ERROR", deleteError.message);
+  }
+
+  if (!images.length) {
+    return;
+  }
+
+  const rows = images.map((image, index) => ({
+    blog_id: blogId,
+    image_url: image.imageUrl,
+    position: image.position ?? index + 1,
+  }));
+
+  const { error: insertError } = await supabase.from("blog_images").insert(rows);
+
+  if (insertError) {
+    throw new ApiError(500, "DATABASE_ERROR", insertError.message);
+  }
+}

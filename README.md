@@ -70,3 +70,17 @@ GET /api/admin/blogs?page=1&limit=10&status=all|published|draft
 - Requires admin session (`profiles.role = 'admin'`)
 - Member/non-admin → `403 FORBIDDEN`
 - Run `supabase/seed-admin.sql` after creating admin user in Supabase Auth
+
+## Feature 6 API
+
+```
+POST   /api/admin/blogs
+GET    /api/admin/blogs/:id
+PUT    /api/admin/blogs/:id
+PATCH  /api/admin/blogs/:id/status   { status: "draft" | "published" }
+DELETE /api/admin/blogs/:id
+POST   /api/admin/uploads            multipart field: file
+```
+
+- Images upload to Supabase Storage bucket `blog-images`
+- Additional images limited to 6 per blog
