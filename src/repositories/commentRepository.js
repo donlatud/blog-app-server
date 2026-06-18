@@ -109,3 +109,99 @@ export async function findPublishedBlogIdBySlug(slug) {
 
   return data.id;
 }
+
+const ADMIN_COMMENT_COLUMNS = `
+  id,
+  author_name,
+  body,
+  status,
+  created_at,
+  reviewed_at,
+  blogs (
+    id,
+    title,
+    slug
+  )
+`;
+
+export async function findAdminComments({ status, limit, offset }) {
+  if (!supabase) {
+    throw new ApiError(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "Database is not configured"
+    );
+  }
+
+  let query = supabase
+    .from("comments")
+    .select(ADMIN_COMMENT_COLUMNS, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (status && status !== "all") {
+    query = query.eq("status", status);
+  }
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    throw new ApiError(500, "DATABASE_ERROR", error.message);
+  }
+
+  return {
+    items: data ?? [],
+    total: count ?? 0,
+  };
+}
+
+export async function countCommentsByStatus(status) {
+  if (!supabase) {
+    throw new ApiError(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "Database is not configured"
+    );
+  }
+
+  const { count, error } = await supabase
+    .from("comments")
+    .select("id", { count: "exact", head: true })
+    .eq("status", status);
+
+  if (error) {
+    throw new ApiError(500, "DATABASE_ERROR", error.message);
+  }
+
+  return count ?? 0;
+}
+
+export async function updateCommentStatus(id, status) {
+  if (!supabase) {
+    throw new ApiError(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "Database is not configured"
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("comments")
+    .update({
+      status,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select(ADMIN_COMMENT_COLUMNS)
+    .maybeSingle();
+
+  if (error) {
+    throw new ApiError(500, "DATABASE_ERROR", error.message);
+  }
+
+  if (!data) {
+    throw new ApiError(404, "COMMENT_NOT_FOUND", "Comment not found");
+  }
+
+  return data;
+}

@@ -1,4 +1,5 @@
 import {
+  findAdminBlogs,
   findPublishedBlogBySlug,
   findPublishedBlogs,
   incrementBlogViewCount,
@@ -85,6 +86,46 @@ export async function getPublishedBlogBySlug(slug) {
       500,
       "BLOG_DETAIL_ERROR",
       error?.message ?? "Failed to fetch blog"
+    );
+  }
+}
+
+function mapAdminBlogRow(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    slug: row.slug,
+    coverImageUrl: row.cover_image_url ?? "",
+    publishedAt: row.published_at,
+    viewCount: row.view_count ?? 0,
+    status: row.status,
+    createdAt: row.created_at,
+  };
+}
+
+export async function getAdminBlogList({ status, page, limit, offset }) {
+  try {
+    const { items, total } = await findAdminBlogs({ status, limit, offset });
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    return {
+      data: items.map(mapAdminBlogRow),
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError(
+      500,
+      "ADMIN_BLOG_LIST_ERROR",
+      error?.message ?? "Failed to fetch admin blogs"
     );
   }
 }
