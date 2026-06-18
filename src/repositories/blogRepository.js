@@ -171,7 +171,7 @@ export async function findBlogById(id) {
     );
   }
 
-  const { data, error } = await supabase
+  const { data: blog, error } = await supabase
     .from("blogs")
     .select(
       `
@@ -185,27 +185,34 @@ export async function findBlogById(id) {
       view_count,
       published_at,
       created_at,
-      updated_at,
-      blog_images (
-        id,
-        image_url,
-        position
-      )
+      updated_at
     `
     )
     .eq("id", id)
-    .order("position", { foreignTable: "blog_images", ascending: true })
     .maybeSingle();
 
   if (error) {
     throw new ApiError(500, "DATABASE_ERROR", error.message);
   }
 
-  if (!data) {
+  if (!blog) {
     throw new ApiError(404, "BLOG_NOT_FOUND", "Blog not found");
   }
 
-  return data;
+  const { data: images, error: imagesError } = await supabase
+    .from("blog_images")
+    .select("id, image_url, position")
+    .eq("blog_id", id)
+    .order("position", { ascending: true });
+
+  if (imagesError) {
+    throw new ApiError(500, "DATABASE_ERROR", imagesError.message);
+  }
+
+  return {
+    ...blog,
+    blog_images: images ?? [],
+  };
 }
 
 export async function isSlugTaken(slug, excludeId = null) {
@@ -251,26 +258,38 @@ export async function insertBlog({
   const now = new Date().toISOString();
   const publishedAt = status === "published" ? now : null;
 
-  const { data, error } = await supabase
-    .from("blogs")
-    .insert({
-      title,
-      slug,
-      excerpt,
-      content,
-      cover_image_url: coverImageUrl || null,
-      status,
-      published_at: publishedAt,
-    })
-    .select("id")
-    .single();
+  const { error: insertError } = await supabase.from("blogs").insert({
+    title,
+    slug,
+    excerpt,
+    content,
+    cover_image_url: coverImageUrl || null,
+    status,
+    published_at: publishedAt,
+  });
 
-  if (error) {
-    if (error.code === "23505") {
+  if (insertError) {
+    if (insertError.code === "23505") {
       throw new ApiError(409, "SLUG_EXISTS", "This slug is already in use.");
     }
 
-    throw new ApiError(500, "DATABASE_ERROR", error.message);
+    throw new ApiError(500, "DATABASE_ERROR", insertError.message);
+  }
+
+  const { data, error: selectError } = await supabase
+    .from("blogs")
+    .select("id")
+    .eq("slug", slug)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (selectError) {
+    throw new ApiError(500, "DATABASE_ERROR", selectError.message);
+  }
+
+  if (!data) {
+    throw new ApiError(500, "DATABASE_ERROR", "Blog created but could not be loaded.");
   }
 
   return data.id;
@@ -285,12 +304,7 @@ export async function updateBlogById(id, fields) {
     );
   }
 
-  const { data, error } = await supabase
-    .from("blogs")
-    .update(fields)
-    .eq("id", id)
-    .select("id")
-    .maybeSingle();
+  const { error } = await supabase.from("blogs").update(fields).eq("id", id);
 
   if (error) {
     if (error.code === "23505") {
@@ -298,6 +312,16 @@ export async function updateBlogById(id, fields) {
     }
 
     throw new ApiError(500, "DATABASE_ERROR", error.message);
+  }
+
+  const { data, error: selectError } = await supabase
+    .from("blogs")
+    .select("id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (selectError) {
+    throw new ApiError(500, "DATABASE_ERROR", selectError.message);
   }
 
   if (!data) {
@@ -316,22 +340,13 @@ export async function deleteBlogById(id) {
     );
   }
 
-  const { data, error } = await supabase
-    .from("blogs")
-    .delete()
-    .eq("id", id)
-    .select("id")
-    .maybeSingle();
+  const { error } = await supabase.from("blogs").delete().eq("id", id);
 
   if (error) {
     throw new ApiError(500, "DATABASE_ERROR", error.message);
   }
 
-  if (!data) {
-    throw new ApiError(404, "BLOG_NOT_FOUND", "Blog not found");
-  }
-
-  return data.id;
+  return id;
 }
 
 export async function replaceBlogImages(blogId, images) {
