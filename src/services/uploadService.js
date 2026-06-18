@@ -43,7 +43,11 @@ export async function uploadBlogImageFile(file) {
     });
 
   if (error) {
-    throw new ApiError(500, "UPLOAD_ERROR", error.message);
+    const message = error.message?.includes("row-level security")
+      ? "Storage upload blocked. Use SUPABASE_SERVICE_ROLE_KEY (service_role, not anon) and run supabase/patch-storage-rls.sql."
+      : error.message;
+
+    throw new ApiError(500, "UPLOAD_ERROR", message);
   }
 
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(objectPath);

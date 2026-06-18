@@ -251,6 +251,37 @@ FOR SELECT
 TO public
 USING (bucket_id = 'blog-images');
 
+DROP POLICY IF EXISTS "Service role upload blog images" ON storage.objects;
+CREATE POLICY "Service role upload blog images"
+ON storage.objects
+FOR INSERT
+WITH CHECK (
+  bucket_id = 'blog-images'
+  AND COALESCE(auth.jwt() ->> 'role', '') = 'service_role'
+);
+
+DROP POLICY IF EXISTS "Service role update blog images" ON storage.objects;
+CREATE POLICY "Service role update blog images"
+ON storage.objects
+FOR UPDATE
+USING (
+  bucket_id = 'blog-images'
+  AND COALESCE(auth.jwt() ->> 'role', '') = 'service_role'
+)
+WITH CHECK (
+  bucket_id = 'blog-images'
+  AND COALESCE(auth.jwt() ->> 'role', '') = 'service_role'
+);
+
+DROP POLICY IF EXISTS "Service role delete blog images" ON storage.objects;
+CREATE POLICY "Service role delete blog images"
+ON storage.objects
+FOR DELETE
+USING (
+  bucket_id = 'blog-images'
+  AND COALESCE(auth.jwt() ->> 'role', '') = 'service_role'
+);
+
 -- ============================================================
 -- 9) ตั้ง admin หลังสร้าง user ใน Authentication → Users
 -- ============================================================
