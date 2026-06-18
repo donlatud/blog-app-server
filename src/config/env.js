@@ -8,6 +8,9 @@ const parseClientUrls = (...values) =>
     .map((url) => url.trim().replace(/\/+$/, ""))
     .filter(Boolean);
 
+const normalizeEnvValue = (value) =>
+  typeof value === "string" ? value.trim().replace(/^["']|["']$/g, "") : value;
+
 const clientUrls = [
   ...new Set(
     parseClientUrls(process.env.CLIENT_URL, process.env.FRONTEND_URL)
@@ -26,8 +29,8 @@ if (process.env.NODE_ENV === "production" && clientUrls.length > 0) {
 const env = {
   port: Number(process.env.PORT) || 4000,
   nodeEnv: process.env.NODE_ENV || "development",
-  supabaseUrl: process.env.SUPABASE_URL,
-  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  supabaseUrl: normalizeEnvValue(process.env.SUPABASE_URL),
+  supabaseServiceRoleKey: normalizeEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY),
   clientUrl: clientUrls[0] || "http://localhost:3000",
   clientUrls,
   corsVercelPrefixes,
