@@ -1,8 +1,13 @@
 # Blog App Server
 
-Express API สำหรับระบบ Blog — Supabase (Postgres + Auth + Storage)
+Express REST API for the Blog System — Supabase (Postgres + Auth + Storage).
 
-## Getting Started
+## Prerequisites
+
+- Node.js 20+
+- Supabase project
+
+## Local development
 
 ```bash
 cp .env.example .env
@@ -10,35 +15,50 @@ npm install
 npm run dev
 ```
 
-API รันที่ [http://localhost:4000](http://localhost:4000) — ทดสอบ health: `GET /api/health`
+API runs at [http://localhost:4000](http://localhost:4000) — health check: `GET /api/health`
 
-## Database
+| Variable | Description |
+|---|---|
+| `PORT` | Server port (default `4000`) |
+| `NODE_ENV` | `development` or `production` |
+| `SUPABASE_URL` | Project URL — `https://xxxxx.supabase.co` (not the Postgres connection string) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server only — never expose to frontend) |
+| `CLIENT_URL` | Frontend origin(s) for CORS — comma-separated for multiple URLs |
 
-1. รัน `supabase/schema.sql` ใน Supabase SQL Editor
-2. รัน `supabase/seed.sql` — seed blog 11 published + 1 draft สำหรับทดสอบ Feature 1
+## Database setup
 
-## Feature 1 API
+Run these SQL files in the Supabase SQL Editor **in order**:
+
+| # | File | Purpose |
+|---|---|---|
+| 1 | `supabase/schema.sql` | Tables, RLS, storage bucket |
+| 2 | `supabase/seed.sql` | 11 published + 1 draft blog |
+| 3 | `supabase/seed-blog-images.sql` | Sample content + gallery images |
+| 4 | `supabase/seed-comments.sql` | Demo approved comments |
+| 5 | `supabase/patch-comment-rls.sql` | Only if upgrading an older database |
+
+### Admin user
+
+1. Create a user in Supabase Dashboard → **Authentication** → **Users**
+2. Run `supabase/seed-admin.sql` (replace the UUID with your admin user id)
+
+### Member demo user
+
+Register via `POST /api/auth/register` or use the frontend `/register` page.
+
+## API overview
+
+### Public
 
 ```
-GET /api/blogs?search=&page=1&limit=10
-```
-
-- เฉพาะ `status = published`
-- ค้นหาจาก `title` (ILIKE)
-- Response: `{ data: BlogListItem[], meta: { page, limit, total, totalPages } }`
-
-## Feature 2 API
-
-```
+GET  /api/health
+GET  /api/blogs?search=&page=1&limit=10
 GET  /api/blogs/:slug
 POST /api/blogs/:slug/view
+POST /api/blogs/:slug/comments        # requireAuth — status: pending
 ```
 
-- รายละเอียด blog (published) + `blog_images`
-- `POST /view` เพิ่ม view count ทุกครั้งที่เปิดหน้า
-- รัน `supabase/seed-blog-images.sql` สำหรับเนื้อหา + รูปเพิ่มเติมตัวอย่าง
-
-## Feature 3 API
+### Auth
 
 ```
 POST /api/auth/register   { email, password, displayName }
@@ -47,52 +67,67 @@ POST /api/auth/logout
 GET  /api/auth/me
 ```
 
-- Session via httpOnly cookies (`access_token`, `refresh_token`)
-- Frontend must use `withCredentials: true` on API requests
+Session via **httpOnly cookies** (`access_token`, `refresh_token`). Frontend must send `withCredentials: true`.
 
-## Feature 4 API
-
-```
-GET  /api/blogs/:slug          # includes approved comments only
-POST /api/blogs/:slug/comments { body }   # requireAuth — status pending
-```
-
-- Comment body: Thai characters and numbers only (1–500 chars), validated client + server
-- Run `supabase/patch-comment-rls.sql` if upgrading an older database
-- Run `supabase/seed-comments.sql` for 2 approved demo comments on `beginner-guide`
-
-## Feature 5 API
+### Admin (requires `profiles.role = 'admin'`)
 
 ```
-GET /api/admin/blogs?page=1&limit=10&status=all|published|draft
-```
-
-- Requires admin session (`profiles.role = 'admin'`)
-- Member/non-admin → `403 FORBIDDEN`
-- Run `supabase/seed-admin.sql` after creating admin user in Supabase Auth
-
-## Feature 6 API
-
-```
+GET    /api/admin/blogs?status=all|published|draft
 POST   /api/admin/blogs
 GET    /api/admin/blogs/:id
 PUT    /api/admin/blogs/:id
-PATCH  /api/admin/blogs/:id/status   { status: "draft" | "published" }
+PATCH  /api/admin/blogs/:id/status    { status: "draft" | "published" }
 DELETE /api/admin/blogs/:id
-POST   /api/admin/uploads            multipart field: file
+POST   /api/admin/uploads             multipart field: file
+
+GET    /api/admin/comments?status=pending|approved|rejected|all
+GET    /api/admin/comments/pending-count
+PATCH  /api/admin/comments/:id/status { status: "pending" | "approved" | "rejected" }
 ```
 
-- Images upload to Supabase Storage bucket `blog-images`
-- Additional images limited to 6 per blog
+All error responses: `{ error: { code, message } }`
 
-## Feature 7 API
+## Deploy to Vercel
+
+1. Push this repo to GitHub
+2. Import project in [Vercel](https://vercel.com)
+3. Set environment variables:
+
+| Variable | Value |
+|---|---|
+| `SUPABASE_URL` | `https://xxxxx.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key |
+| `CLIENT_URL` | Frontend URL(s) — e.g. `https://your-frontend.vercel.app` |
+| `NODE_ENV` | `production` |
+
+4. Deploy — `vercel.json` is included for serverless Express
+
+`VERCEL=1` is set automatically on Vercel; the app exports the Express handler instead of calling `listen()`.
+
+### CORS in production
+
+Set `CLIENT_URL` to your deployed frontend URL. For multiple origins (e.g. production + preview):
 
 ```
-GET   /api/admin/comments?page=1&limit=10&status=pending|approved|rejected|all
-GET   /api/admin/comments/pending-count
-PATCH /api/admin/comments/:id/status   { status: "pending" | "approved" | "rejected" }
+CLIENT_URL=https://your-app.vercel.app,https://your-app-git-main.vercel.app
 ```
 
-- Default list filter: `pending`
-- Approve/reject updates `comments.status` and `reviewed_at`
-- Rejecting a previously approved comment hides it from the public blog page
+## Supabase Auth redirect URLs
+
+In Supabase Dashboard → **Authentication** → **URL configuration**:
+
+| Setting | Value |
+|---|---|
+| Site URL | Your frontend URL |
+| Redirect URLs | `http://localhost:3000/**`, `https://your-frontend.vercel.app/**` |
+
+## Storage
+
+Admin image uploads go to the `blog-images` bucket (created by `schema.sql`). Max file size: 5 MB.
+
+## Scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start with nodemon (local) |
+| `npm run start:prod` | Start without nodemon (production) |

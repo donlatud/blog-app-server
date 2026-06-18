@@ -1,4 +1,5 @@
 import ApiError from "../utils/apiError.js";
+import env from "../config/env.js";
 
 export default function errorHandler(err, req, res, next) {
   const statusCode =
@@ -13,15 +14,25 @@ export default function errorHandler(err, req, res, next) {
       : err?.code === "LIMIT_FILE_SIZE"
         ? "VALIDATION_ERROR"
         : err.code || "INTERNAL_SERVER_ERROR";
-  const message =
+  let message =
     err instanceof ApiError
       ? err.message
       : err?.code === "LIMIT_FILE_SIZE"
         ? "Image must be smaller than 5 MB."
         : err.message || "Internal server error";
 
-  if (process.env.NODE_ENV !== "production") {
+  if (statusCode >= 500 && env.isProduction && !(err instanceof ApiError)) {
+    message = "Internal server error";
+  }
+
+  if (!env.isProduction) {
     console.error(err);
+  }
+
+  if (err?.message === "Not allowed by CORS") {
+    return res.status(403).json({
+      error: { code: "CORS_FORBIDDEN", message: "Origin not allowed" },
+    });
   }
 
   res.status(statusCode).json({
