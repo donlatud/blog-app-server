@@ -36,6 +36,7 @@ Run these SQL files in the Supabase SQL Editor **in order**:
 | 3 | `supabase/seed-blog-images.sql` | Sample content + gallery images |
 | 4 | `supabase/seed-comments.sql` | Demo approved comments |
 | 5 | `supabase/patch-comment-rls.sql` | Only if upgrading an older database |
+| 6 | `supabase/patch-storage-rls.sql` | If admin image upload fails with RLS error |
 
 ### Admin user
 
@@ -124,6 +125,12 @@ In Supabase Dashboard → **Authentication** → **URL configuration**:
 ## Storage
 
 Admin image uploads go to the `blog-images` bucket (created by `schema.sql`). Max file size: 5 MB.
+
+If upload returns `UPLOAD_ERROR` / `row-level security`:
+
+1. Confirm `SUPABASE_SERVICE_ROLE_KEY` is the **service_role** key (not anon)
+2. Run `supabase/patch-storage-rls.sql` in Supabase SQL Editor
+3. Redeploy backend
 
 ## Scripts
 
