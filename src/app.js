@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import env from "./config/env.js";
 import routes from "./routes/index.js";
 import errorHandler from "./middleware/errorHandler.js";
+import { isAllowedClientOrigin } from "./utils/corsOrigin.js";
 
 function createApp() {
   const app = express();
@@ -11,7 +12,9 @@ function createApp() {
   app.use(
     cors({
       origin(origin, callback) {
-        if (!origin || env.clientUrls.includes(origin)) {
+        if (
+          isAllowedClientOrigin(origin, env.clientUrls, env.corsVercelPrefixes)
+        ) {
           callback(null, true);
           return;
         }
