@@ -84,3 +84,15 @@ POST   /api/admin/uploads            multipart field: file
 
 - Images upload to Supabase Storage bucket `blog-images`
 - Additional images limited to 6 per blog
+
+## Feature 7 API
+
+```
+GET   /api/admin/comments?page=1&limit=10&status=pending|approved|rejected|all
+GET   /api/admin/comments/pending-count
+PATCH /api/admin/comments/:id/status   { status: "pending" | "approved" | "rejected" }
+```
+
+- Default list filter: `pending`
+- Approve/reject updates `comments.status` and `reviewed_at`
+- Rejecting a previously approved comment hides it from the public blog page

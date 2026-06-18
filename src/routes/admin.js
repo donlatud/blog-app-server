@@ -8,6 +8,11 @@ import {
   updateBlog,
   uploadImage,
 } from "../controllers/adminBlogController.js";
+import {
+  getAdminCommentPendingCount,
+  listAdminComments,
+  patchCommentStatus,
+} from "../controllers/adminCommentController.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import { uploadSingleImage } from "../middleware/upload.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -39,5 +44,9 @@ router.get("/blogs/:id", asyncHandler(getAdminBlog));
 router.put("/blogs/:id", asyncHandler(updateBlog));
 router.patch("/blogs/:id/status", asyncHandler(patchBlogStatus));
 router.delete("/blogs/:id", asyncHandler(deleteBlog));
+
+router.get("/comments", asyncHandler(listAdminComments));
+router.get("/comments/pending-count", asyncHandler(getAdminCommentPendingCount));
+router.patch("/comments/:id/status", asyncHandler(patchCommentStatus));
 
 export default router;
