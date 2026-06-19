@@ -1,5 +1,3 @@
-import crypto from "node:crypto";
-
 import supabase from "../config/supabase.js";
 import ApiError from "../utils/apiError.js";
 import { BLOG_STATUS, COMMENT_STATUS } from "../constants/index.js";
@@ -49,38 +47,17 @@ export async function insertComment({
     status: COMMENT_STATUS.PENDING,
   };
 
-  const { error: insertError } = await supabase.from("comments").insert(payload);
-
-  if (insertError) {
-    throw new ApiError(500, "DATABASE_ERROR", insertError.message);
-  }
-
-  const { data, error: selectError } = await supabase
+  const { data, error } = await supabase
     .from("comments")
+    .insert(payload)
     .select("id, author_name, body, created_at, status")
-    .eq("blog_id", blogId)
-    .eq("user_id", userId)
-    .eq("body", body)
-    .eq("status", COMMENT_STATUS.PENDING)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .single();
 
-  if (selectError) {
-    throw new ApiError(500, "DATABASE_ERROR", selectError.message);
+  if (error) {
+    throw new ApiError(500, "DATABASE_ERROR", error.message);
   }
 
-  if (data) {
-    return data;
-  }
-
-  return {
-    id: crypto.randomUUID(),
-    author_name: authorName,
-    body,
-    created_at: new Date().toISOString(),
-    status: COMMENT_STATUS.PENDING,
-  };
+  return data;
 }
 
 export async function findPublishedBlogIdBySlug(slug) {

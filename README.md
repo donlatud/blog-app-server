@@ -38,6 +38,9 @@ Run these SQL files in the Supabase SQL Editor **in order**:
 | 5 | `supabase/patch-comment-rls.sql` | Only if upgrading an older database |
 | 6 | `supabase/patch-storage-rls.sql` | If admin image upload fails with RLS error |
 | 7 | `supabase/patch-blog-admin-rls.sql` | If admin blog edit/save returns BLOG_NOT_FOUND |
+| 8 | `supabase/patch-blogs-rls.sql` | If you deleted blogs RLS policies |
+| 9 | `supabase/patch-profile-rls.sql` | If `profiles` RLS error or Profile not found |
+| 10 | `supabase/patch-comments-admin-rls.sql` | If submitted comments missing in admin Pending |
 
 ### Admin user
 
