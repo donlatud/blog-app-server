@@ -1,6 +1,7 @@
 import {
   getMeFromRequest,
   loginMember,
+  refreshAuthFromRequest,
   registerMember,
 } from "../services/authService.js";
 import {
@@ -77,7 +78,16 @@ export async function logout(req, res, next) {
 
 export async function me(req, res, next) {
   try {
-    const user = await getMeFromRequest(req);
+    const user = await getMeFromRequest(req, res);
+    return res.status(200).json({ data: user });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function refresh(req, res, next) {
+  try {
+    const user = await refreshAuthFromRequest(req, res);
     return res.status(200).json({ data: user });
   } catch (error) {
     return next(error);

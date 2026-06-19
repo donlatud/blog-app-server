@@ -1,7 +1,11 @@
 import supabase from "../config/supabase.js";
-import { findProfileById } from "../repositories/profileRepository.js";
+import { ensureProfileForAuthUser } from "../repositories/profileRepository.js";
 import ApiError from "../utils/apiError.js";
-import { getAccessToken } from "../utils/authCookies.js";
+import {
+  getAccessToken,
+  getRefreshToken,
+  setAuthCookies,
+} from "../utils/authCookies.js";
 
 function mapProfile(profile, email) {
   return {
@@ -12,6 +16,62 @@ function mapProfile(profile, email) {
     role: profile.role,
     createdAt: profile.created_at,
   };
+}
+
+async function isAccessTokenValid(accessToken) {
+  if (!supabase || !accessToken) {
+    return false;
+  }
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(accessToken);
+
+  return !error && Boolean(user);
+}
+
+export async function refreshSessionFromToken(refreshToken) {
+  if (!supabase) {
+    throw new ApiError(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "Database is not configured"
+    );
+  }
+
+  if (!refreshToken) {
+    throw new ApiError(401, "UNAUTHORIZED", "Authentication required");
+  }
+
+  const { data, error } = await supabase.auth.refreshSession({
+    refresh_token: refreshToken,
+  });
+
+  if (error || !data.session) {
+    throw new ApiError(401, "UNAUTHORIZED", "Invalid or expired session");
+  }
+
+  return data.session;
+}
+
+export async function resolveAccessToken(req, res) {
+  const accessToken = getAccessToken(req);
+
+  if (await isAccessTokenValid(accessToken)) {
+    return accessToken;
+  }
+
+  const refreshToken = getRefreshToken(req);
+
+  if (!refreshToken) {
+    return null;
+  }
+
+  const session = await refreshSessionFromToken(refreshToken);
+  setAuthCookies(res, session);
+
+  return session.access_token;
 }
 
 export async function getUserFromAccessToken(accessToken) {
@@ -41,7 +101,7 @@ export async function getUserFromAccessToken(accessToken) {
 
 export async function getCurrentUser(accessToken) {
   const user = await getUserFromAccessToken(accessToken);
-  const profile = await findProfileById(user.id);
+  const profile = await ensureProfileForAuthUser(user);
   return mapProfile(profile, user.email ?? "");
 }
 
@@ -91,7 +151,7 @@ export async function registerMember({ email, password, displayName }) {
     );
   }
 
-  const profile = await findProfileById(signInData.user.id);
+  const profile = await ensureProfileForAuthUser(signInData.user);
 
   return {
     session: signInData.session,
@@ -117,7 +177,7 @@ export async function loginMember({ email, password }) {
     throw new ApiError(401, "INVALID_CREDENTIALS", "Invalid email or password");
   }
 
-  const profile = await findProfileById(data.user.id);
+  const profile = await ensureProfileForAuthUser(data.user);
 
   return {
     session: data.session,
@@ -125,7 +185,22 @@ export async function loginMember({ email, password }) {
   };
 }
 
-export async function getMeFromRequest(req) {
-  const accessToken = getAccessToken(req);
+export async function getMeFromRequest(req, res) {
+  const accessToken = await resolveAccessToken(req, res);
+
+  if (!accessToken) {
+    throw new ApiError(401, "UNAUTHORIZED", "Authentication required");
+  }
+
+  return getCurrentUser(accessToken);
+}
+
+export async function refreshAuthFromRequest(req, res) {
+  const accessToken = await resolveAccessToken(req, res);
+
+  if (!accessToken) {
+    throw new ApiError(401, "UNAUTHORIZED", "Authentication required");
+  }
+
   return getCurrentUser(accessToken);
 }
