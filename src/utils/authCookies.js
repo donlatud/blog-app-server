@@ -29,11 +29,15 @@ export function setAuthCookies(res, session) {
 export function clearAuthCookies(res) {
   const clearOptions = {
     ...baseCookieOptions,
+    maxAge: 0,
+    expires: new Date(0),
     ...(isProduction ? { partitioned: true } : {}),
   };
 
   res.clearCookie(ACCESS_TOKEN_COOKIE, clearOptions);
   res.clearCookie(REFRESH_TOKEN_COOKIE, clearOptions);
+  res.cookie(ACCESS_TOKEN_COOKIE, "", clearOptions);
+  res.cookie(REFRESH_TOKEN_COOKIE, "", clearOptions);
 }
 
 export function getAccessToken(req) {

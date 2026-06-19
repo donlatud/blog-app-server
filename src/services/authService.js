@@ -2,6 +2,7 @@ import supabase from "../config/supabase.js";
 import { ensureProfileForAuthUser } from "../repositories/profileRepository.js";
 import ApiError from "../utils/apiError.js";
 import {
+  clearAuthCookies,
   getAccessToken,
   getRefreshToken,
   setAuthCookies,
@@ -203,4 +204,47 @@ export async function refreshAuthFromRequest(req, res) {
   }
 
   return getCurrentUser(accessToken);
+}
+
+async function resolveUserIdForLogout(accessToken, refreshToken) {
+  if (!supabase) {
+    return null;
+  }
+
+  if (accessToken) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser(accessToken);
+
+    if (user) {
+      return user.id;
+    }
+  }
+
+  if (!refreshToken) {
+    return null;
+  }
+
+  try {
+    const session = await refreshSessionFromToken(refreshToken);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser(session.access_token);
+
+    return user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function logoutFromRequest(req, res) {
+  const accessToken = getAccessToken(req);
+  const refreshToken = getRefreshToken(req);
+  const userId = await resolveUserIdForLogout(accessToken, refreshToken);
+
+  if (supabase && userId) {
+    await supabase.auth.admin.signOut(userId, "global");
+  }
+
+  clearAuthCookies(res);
 }
