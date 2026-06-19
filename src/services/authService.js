@@ -206,7 +206,33 @@ export async function refreshAuthFromRequest(req, res) {
   return getCurrentUser(accessToken);
 }
 
+function getUserIdFromAccessTokenJwt(accessToken) {
+  if (!accessToken || typeof accessToken !== "string") {
+    return null;
+  }
+
+  const parts = accessToken.split(".");
+  if (parts.length < 2) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(
+      Buffer.from(parts[1], "base64url").toString("utf8")
+    );
+
+    return typeof payload.sub === "string" ? payload.sub : null;
+  } catch {
+    return null;
+  }
+}
+
 async function resolveUserIdForLogout(accessToken, refreshToken) {
+  const jwtUserId = getUserIdFromAccessTokenJwt(accessToken);
+  if (jwtUserId) {
+    return jwtUserId;
+  }
+
   if (!supabase) {
     return null;
   }
