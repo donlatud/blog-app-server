@@ -1,14 +1,11 @@
 import {
   getMeFromRequest,
   loginMember,
+  logoutFromRequest,
   refreshAuthFromRequest,
   registerMember,
 } from "../services/authService.js";
-import {
-  clearAuthCookies,
-  getAccessToken,
-  setAuthCookies,
-} from "../utils/authCookies.js";
+import { getAccessToken, setAuthCookies } from "../utils/authCookies.js";
 import ApiError from "../utils/apiError.js";
 
 function validateEmailPassword(body) {
@@ -69,7 +66,7 @@ export async function login(req, res, next) {
 
 export async function logout(req, res, next) {
   try {
-    clearAuthCookies(res);
+    await logoutFromRequest(req, res);
     return res.status(200).json({ data: { success: true } });
   } catch (error) {
     return next(error);
