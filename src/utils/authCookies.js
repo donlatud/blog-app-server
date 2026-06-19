@@ -13,22 +13,27 @@ const baseCookieOptions = {
 };
 
 export function setAuthCookies(res, session) {
-  res.cookie(ACCESS_TOKEN_COOKIE, session.access_token, {
+  const cookieOptions = {
     ...baseCookieOptions,
     maxAge: REFRESH_COOKIE_MAX_AGE_MS,
-  });
+    ...(isProduction ? { partitioned: true } : {}),
+  };
+
+  res.cookie(ACCESS_TOKEN_COOKIE, session.access_token, cookieOptions);
 
   if (session.refresh_token) {
-    res.cookie(REFRESH_TOKEN_COOKIE, session.refresh_token, {
-      ...baseCookieOptions,
-      maxAge: REFRESH_COOKIE_MAX_AGE_MS,
-    });
+    res.cookie(REFRESH_TOKEN_COOKIE, session.refresh_token, cookieOptions);
   }
 }
 
 export function clearAuthCookies(res) {
-  res.clearCookie(ACCESS_TOKEN_COOKIE, baseCookieOptions);
-  res.clearCookie(REFRESH_TOKEN_COOKIE, baseCookieOptions);
+  const clearOptions = {
+    ...baseCookieOptions,
+    ...(isProduction ? { partitioned: true } : {}),
+  };
+
+  res.clearCookie(ACCESS_TOKEN_COOKIE, clearOptions);
+  res.clearCookie(REFRESH_TOKEN_COOKIE, clearOptions);
 }
 
 export function getAccessToken(req) {
